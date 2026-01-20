@@ -11,11 +11,10 @@ def get_best_model(api_key):
         url = f"https://generativelanguage.googleapis.com/v1/models?key={api_key}"
         res = requests.get(url).json()
         models = [m['name'] for m in res.get('models', []) if 'generateContent' in m.get('supportedGenerationMethods', [])]
-        # 2.5-flashがあれば優先、なければリストの先頭を使う
         best = next((m for m in models if '2.5-flash' in m), models[0] if models else None)
         return best
     except:
-        return "models/gemini-2.5-flash" # 失敗時のフォールバック
+        return "models/gemini-2.5-flash"
 
 def main():
     print("--- 実行開始 ---")
@@ -26,57 +25,59 @@ def main():
         creds, _ = google.auth.default(scopes=['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'])
         gc = gspread.authorize(creds)
         sh = gc.open("TikTok管理シート").sheet1
+        print("スプレッドシート接続成功。")
     except Exception as e:
-        print(f"エラー: スプレッドシートに接続できません。 {e}")
+        print(f"エラー: スプレッドシート接続失敗: {e}")
         return
 
     # 2. 未処理行の検索
     try:
         cell = sh.find("未処理")
     except gspread.exceptions.CellNotFound:
-        print("【完了】『未処理』の行が見つかりませんでした。B列を確認してください。")
+        print("【完了】『未処理』の行が見つかりませんでした。")
         return
 
-    # 3. データの取得
     row_num = cell.row
-    topic = sh.cell(row_num, 1).value # A列
+    topic = sh.cell(row_num, 1).value
     print(f"処理対象: {topic}")
 
-    # 4. モデルの判別と生成
+    # 3. 英語プロンプトの作成（出力は日本語を指定）
     model_name = get_best_model(api_key)
-    print(f"使用モデル: {model_name}")
-    
     gen_url = f"https://generativelanguage.googleapis.com/v1/{model_name}:generateContent?key={api_key}"
     
-    # --- ここを書き換えます ---
-        # 指示（プロンプト）を英語にし、出力だけ日本語を指定する
-        english_prompt = (
-            f"Theme: {topic}\n"
-            "Task: Create a 15-second TikTok script in Japanese and 3 English image search keywords.\n"
-            "Constraint: Separate the script and keywords clearly."
-        )
+    prompt = (
+        f"Theme: {topic}\n"
+        "Task 1: Write a 15-second TikTok script in Japanese.\n"
+        "Task 2: Provide 3 English image search keywords for this theme.\n"
+        "Constraint: Use '###' as a separator between the script and keywords.\n"
+        "Output format: [Script] ### [Keyword1, Keyword2, Keyword3]"
+    )
 
-        payload = {
-            "contents": [{
-                "parts": [{"text": english_prompt}]
-            }]
-        }
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
-    # 5. リトライ付き実行
+    # 4. 生成と書き込み
     for i in range(3):
         res = requests.post(gen_url, json=payload)
         if res.status_code == 200:
-            ai_text = res.json()['candidates'][0]['content']['parts'][0]['text']
-            # スプレッドシート更新
-            sh.update_cell(row_num, 3, ai_text)      # C列：台本
-            sh.update_cell(row_num, 2, "設計図完了")  # B列：ステータス
-            print(f"【成功】シートを更新しました。")
+            full_text = res.json()['candidates'][0]['content']['parts'][0]['text']
+            
+            # 「###」で台本とキーワードを分割する
+            if "###" in full_text:
+                script, keywords = full_text.split("###", 1)
+            else:
+                script, keywords = full_text, ""
+
+            # シートに反映
+            sh.update_cell(row_num, 3, script.strip())   # C列: 台本(日本語)
+            sh.update_cell(row_num, 4, keywords.strip()) # D列: キーワード(英語)
+            sh.update_cell(row_num, 2, "設計図完了")      # B列: ステータス
+            
+            print(f"【成功】C列に台本、D列にキーワードを書き込みました！")
             return
         elif res.status_code == 503:
-            print(f"混雑中... {10*(i+1)}秒待機してリトライします。")
-            time.sleep(10 * (i+1))
+            time.sleep(10)
         else:
-            print(f"エラーが発生しました({res.status_code}): {res.text}")
+            print(f"エラー: {res.status_code}")
             break
 
 if __name__ == "__main__":
