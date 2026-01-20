@@ -1,0 +1,35 @@
+name: TikTok Auto Generation
+
+on:
+  workflow_dispatch: # 手動実行用
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          # あなたのプロジェクト情報
+          workload_identity_provider: 'projects/966552533765/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'TikTok-auto@tiktok-auto-poster-484903.iam.gserviceaccount.com'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run Python script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python main.py
