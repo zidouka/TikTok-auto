@@ -117,3 +117,22 @@ def main():
             keywords = parts[1].strip()
         else:
             script = full_text.strip()
+            keywords = "nature"
+
+        # 4. 動画検索
+        video_url = search_pexels_videos(pexels_key, keywords)
+
+        # 5. 書き込み
+        sh.update_cell(row_num, 3, script)    # C列: 60秒台本
+        sh.update_cell(row_num, 4, keywords)  # D列: キーワード
+        sh.update_cell(row_num, 5, video_url) # E列: 動画URL
+        sh.update_cell(row_num, 2, "設計図完了") # B列: ステータス
+        
+        print(f"【成功】行番号 {row_num} の処理が完了しました！")
+        print(f"使用キーワード: {keywords}")
+        print(f"取得URL: {video_url}")
+    else:
+        print(f"Geminiエラー: {res.status_code} - {res.text}")
+
+if __name__ == "__main__":
+    main()
