@@ -1,7 +1,7 @@
 name: TikTok Auto Generation
 
 on:
-  workflow_dispatch: # 手動実行用
+  workflow_dispatch:
 
 jobs:
   run-script:
@@ -24,11 +24,11 @@ jobs:
         with:
           python-version: '3.10'
 
-      # 動画編集に必要なソフト(ImageMagick)をインストール
       - name: Install ImageMagick
         run: |
           sudo apt-get update
           sudo apt-get install -y imagemagick
+          sudo sed -i 's/policy domain="path" rights="none" pattern="@\*"/policy domain="path" rights="read|write" pattern="@\*"/g' /etc/ImageMagick-6/policy.xml
 
       - name: Install dependencies
         run: |
@@ -40,9 +40,8 @@ jobs:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: python main.py
 
-      # 【追加】作成された動画をGitHub上に保存する設定
       - name: Upload Video Artifact
         uses: actions/upload-artifact@v4
         with:
           name: tiktok-videos
-          path: outputs/  # main.pyで指定した出力フォルダ
+          path: outputs/
