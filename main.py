@@ -5,18 +5,11 @@ import requests
 import json
 
 def main():
-    print("--- デバッグ開始 ---")
+    print("--- 最終デバッグ開始 ---")
     
-    # 1. APIキーの読み込みチェック
     api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        print("致命的エラー: GEMINI_API_KEY がGitHubのSecretsから読み込めていません。")
-        return
-    else:
-        # キーの最初の3文字だけ表示して、正しく読み込めているか確認
-        print(f"APIキーを確認しました (先頭3文字): {api_key[:3]}...")
-
-    # 2. スプレッドシート用の認証
+    
+    # 1. スプレッドシート用の認証
     try:
         creds, project = google.auth.default(
             scopes=['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
@@ -28,36 +21,54 @@ def main():
         print(f"スプレッドシート接続失敗: {e}")
         return
 
-    # 3. 処理実行
+    # 2. 「未処理」ネタの取得
     try:
         cell = sh.find("未処理")
         topic = sh.cell(cell.row, 1).value
         print(f"ターゲットネタ: {topic}")
 
-        # --- Gemini API 通信 (もっとも原始的なURL形式) ---
-        # 確実に 1.5-flash を v1 で叩きます
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+        # --- 3. 【重要】利用可能なモデルをリストアップ ---
+        list_url = f"https://generativelanguage.googleapis.com/v1/models?key={api_key}"
+        list_response = requests.get(list_url)
+        models_data = list_response.json()
         
-        headers = {'Content-Type': 'application/json'}
+        # 使えるモデルの中から gemini を含むものを探す
+        available_model = None
+        if 'models' in models_data:
+            for m in models_data['models']:
+                # 404を避けるため、generateContentがサポートされているモデルを探す
+                if 'generateContent' in m.get('supportedGenerationMethods', []):
+                    # 名前を抽出 (例: models/gemini-1.5-flash)
+                    available_model = m['name']
+                    # もし flash があればそれを優先
+                    if 'flash' in m['name']:
+                        break
+        
+        if not available_model:
+            print(f"致命的エラー: このAPIキーで利用可能なGeminiモデルが見つかりません。返却データ: {models_data}")
+            return
+
+        print(f"使用するモデル: {available_model}")
+
+        # --- 4. 判明したモデルで台本生成 ---
+        gen_url = f"https://generativelanguage.googleapis.com/v1/{available_model}:generateContent?key={api_key}"
+        
         payload = {
             "contents": [{
                 "parts": [{"text": f"テーマ「{topic}」でTikTok台本と英語キーワード3つ作成して。形式は「台本：〜〜 キーワード：〜〜」"}]
             }]
         }
 
-        response = requests.post(url, headers=headers, data=json.dumps(payload))
-        print(f"HTTPステータス: {response.status_code}")
-        
+        response = requests.post(gen_url, headers={'Content-Type': 'application/json'}, data=json.dumps(payload))
         result = response.json()
 
         if response.status_code == 200:
             ai_text = result['candidates'][0]['content']['parts'][0]['text']
             sh.update_cell(cell.row, 3, ai_text)
             sh.update_cell(cell.row, 2, "設計図完了")
-            print(f"成功: 書き込み完了")
+            print(f"成功: {available_model} を使用して書き込み完了")
         else:
-            # エラーの詳細をさらに詳しく表示
-            print(f"詳細エラーログ: {json.dumps(result, indent=2)}")
+            print(f"生成エラー: {json.dumps(result, indent=2)}")
 
     except Exception as e:
         print(f"エラー発生: {e}")
