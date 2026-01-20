@@ -47,9 +47,20 @@ def main():
     print(f"使用モデル: {model_name}")
     
     gen_url = f"https://generativelanguage.googleapis.com/v1/{model_name}:generateContent?key={api_key}"
-    payload = {
-        "contents": [{"parts": [{"text": f"テーマ「{topic}」でTikTok台本と英語キーワード3つ作成して。形式は「台本：〜〜 キーワード：〜〜」"}]}]
-    }
+    
+    # --- ここを書き換えます ---
+        # 指示（プロンプト）を英語にし、出力だけ日本語を指定する
+        english_prompt = (
+            f"Theme: {topic}\n"
+            "Task: Create a 15-second TikTok script in Japanese and 3 English image search keywords.\n"
+            "Constraint: Separate the script and keywords clearly."
+        )
+
+        payload = {
+            "contents": [{
+                "parts": [{"text": english_prompt}]
+            }]
+        }
 
     # 5. リトライ付き実行
     for i in range(3):
