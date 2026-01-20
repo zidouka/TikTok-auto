@@ -28,7 +28,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y imagemagick
+          # セキュリティ制限の解除
           sudo sed -i 's/policy domain="path" rights="none" pattern="@\*"/policy domain="path" rights="read|write" pattern="@\*"/g' /etc/ImageMagick-6/policy.xml
+          # リソース制限（メモリ・サイズ）の解除
+          sudo sed -i 's/policy domain="resource" name="width" value="16KP"/policy domain="resource" name="width" value="128KP"/g' /etc/ImageMagick-6/policy.xml
+          sudo sed -i 's/policy domain="resource" name="height" value="16KP"/policy domain="resource" name="height" value="128KP"/g' /etc/ImageMagick-6/policy.xml
+          sudo sed -i 's/policy domain="resource" name="area" value="128MB"/policy domain="resource" name="area" value="2GB"/g' /etc/ImageMagick-6/policy.xml
+          sudo sed -i 's/policy domain="resource" name="memory" value="256MiB"/policy domain="resource" name="memory" value="2GiB"/g' /etc/ImageMagick-6/policy.xml
 
       - name: Install dependencies
         run: |
