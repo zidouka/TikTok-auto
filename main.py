@@ -32,9 +32,8 @@ def main():
         topic = sh.cell(cell.row, 1).value
         print(f"処理を開始します: {topic}")
 
-        # --- 4. Gemini API へ直接リクエスト ---
-        # 住所を「v1」に完全固定し、モデルも「gemini-1.5-flash」を指定
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+        # URLを gemini-pro に変更（1.5-flashが拒否されるキーでも通る可能性が高いです）
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={api_key}"
         
         headers = {'Content-Type': 'application/json'}
         payload = {
