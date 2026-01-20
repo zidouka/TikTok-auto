@@ -2,9 +2,10 @@ import os
 import gspread
 import google.auth
 from google import genai
+from google.genai import types # 追加
 
 def main():
-    # 1. Google Cloud 認証（スプレッドシート用）
+    # 1. Google Cloud 認証
     creds, project = google.auth.default(
         scopes=['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
     )
@@ -17,9 +18,13 @@ def main():
         print(f"Error: シートが見つかりません: {e}")
         return
 
-    # 3. 新しいGeminiライブラリの設定
+    # 3. Geminiの設定
     api_key = os.environ.get("GEMINI_API_KEY")
-    client = genai.Client(api_key=api_key)
+    # http_options を追加して、強制的に v1 API を使うように仕向けます
+    client = genai.Client(
+        api_key=api_key,
+        http_options={'api_version': 'v1'} 
+    )
 
     # 4. 「未処理」の行を探して処理
     try:
@@ -28,11 +33,11 @@ def main():
         
         print(f"処理を開始します: {topic}")
         
-        prompt = f"テーマ「{topic}」について、TikTok用の動画台本と、動画素材を探すための英語キーワード3つを作成して。形式は「台本：〜〜 キーキーワード：〜〜」としてください。"
+        prompt = f"テーマ「{topic}」について、TikTok用の動画台本と、英語キーワード3つを作成して。"
         
-        # 最新の呼び出し方式
+        # モデル名を最新のエイリアスに変更
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='gemini-1.5-flash-latest', 
             contents=prompt
         )
         
@@ -45,7 +50,7 @@ def main():
         if "matching cell" in str(e):
             print("未処理のネタが見つかりませんでした。")
         else:
-            print(f"エラーが発生しました: {e}")
+            print(f"エラー詳細: {e}")
 
 if __name__ == "__main__":
     main()
