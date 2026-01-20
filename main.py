@@ -21,7 +21,7 @@ def main():
     # 3. Geminiの設定
     api_key = os.environ.get("GEMINI_API_KEY")
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('models/gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
     # 4. 「未処理」の行を探して処理
     try:
