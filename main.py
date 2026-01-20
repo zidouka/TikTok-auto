@@ -2,7 +2,6 @@ import os
 import gspread
 import google.auth
 from google import genai
-from google.genai import types # 追加
 
 def main():
     # 1. Google Cloud 認証
@@ -20,37 +19,31 @@ def main():
 
     # 3. Geminiの設定
     api_key = os.environ.get("GEMINI_API_KEY")
-    # http_options を追加して、強制的に v1 API を使うように仕向けます
-    client = genai.Client(
-        api_key=api_key,
-        http_options={'api_version': 'v1'} 
-    )
+    # バージョン指定をあえて外して、ライブラリのデフォルトに任せます
+    client = genai.Client(api_key=api_key)
 
-    # 4. 「未処理」の行を探して処理
+    # 4. 処理実行
     try:
         cell = sh.find("未処理")
         topic = sh.cell(cell.row, 1).value
-        
         print(f"処理を開始します: {topic}")
         
-        prompt = f"テーマ「{topic}」について、TikTok用の動画台本と、英語キーワード3つを作成して。"
-        
-        # モデル名を最新のエイリアスに変更
+        # モデル名を最も標準的な 'gemini-1.5-flash' に戻します
         response = client.models.generate_content(
-            model='gemini-1.5-flash-latest', 
-            contents=prompt
+            model='gemini-1.5-flash',
+            contents=f"TikTok用の動画台本を作って。テーマ：{topic}"
         )
         
         # 書き込み
         sh.update_cell(cell.row, 3, response.text)
         sh.update_cell(cell.row, 2, "設計図完了")
-        print(f"成功: {topic} の台本を作成しました。")
+        print(f"成功: {topic} の台本を書き込みました。")
         
     except Exception as e:
         if "matching cell" in str(e):
             print("未処理のネタが見つかりませんでした。")
         else:
-            print(f"エラー詳細: {e}")
+            print(f"エラーが発生しました: {e}")
 
 if __name__ == "__main__":
     main()
