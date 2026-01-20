@@ -41,16 +41,21 @@ def main():
     topic = sh.cell(row_num, 1).value
     print(f"処理対象: {topic}")
 
-    # 3. 英語プロンプトの作成（出力は日本語を指定）
+    # 3. 英語プロンプトの作成（60秒・飽きさせない構成を指示）
     model_name = get_best_model(api_key)
     gen_url = f"https://generativelanguage.googleapis.com/v1/{model_name}:generateContent?key={api_key}"
     
     prompt = (
         f"Theme: {topic}\n"
-        "Task 1: Write a 15-second TikTok script in Japanese.\n"
-        "Task 2: Provide 3 English image search keywords for this theme.\n"
-        "Constraint: Use '###' as a separator between the script and keywords.\n"
-        "Output format: [Script] ### [Keyword1, Keyword2, Keyword3]"
+        "Task 1: Create a detailed TikTok script in Japanese (approx. 60 seconds).\n"
+        "The script must be engaging and prevent viewer boredom by covering 2-3 interesting facts or deeper insights.\n"
+        "It must include: Characters, Narration, Telop (on-screen text), and diverse Video descriptions divided by time stamps.\n"
+        "Task 2: Provide 5 English image search keywords related to the theme for finding diverse video stock footage.\n"
+        "Constraint: Use '###' as a separator between Task 1 and Task 2.\n"
+        "Output Format:\n"
+        "[Full Japanese Script]\n"
+        "###\n"
+        "[Keyword 1, Keyword 2, Keyword 3, Keyword 4, Keyword 5]"
     )
 
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -61,23 +66,22 @@ def main():
         if res.status_code == 200:
             full_text = res.json()['candidates'][0]['content']['parts'][0]['text']
             
-            # 「###」で台本とキーワードを分割する
             if "###" in full_text:
                 script, keywords = full_text.split("###", 1)
             else:
                 script, keywords = full_text, ""
 
-            # シートに反映
-            sh.update_cell(row_num, 3, script.strip())   # C列: 台本(日本語)
-            sh.update_cell(row_num, 4, keywords.strip()) # D列: キーワード(英語)
+            sh.update_cell(row_num, 3, script.strip())   # C列: 構成案付き台本
+            sh.update_cell(row_num, 4, keywords.strip()) # D列: 検索キーワード
             sh.update_cell(row_num, 2, "設計図完了")      # B列: ステータス
             
-            print(f"【成功】C列に台本、D列にキーワードを書き込みました！")
+            print(f"【成功】60秒構成案とキーワードの書き込みが完了しました。")
             return
         elif res.status_code == 503:
+            print("混雑中... リトライします。")
             time.sleep(10)
         else:
-            print(f"エラー: {res.status_code}")
+            print(f"エラー: {res.status_code}\n{res.text}")
             break
 
 if __name__ == "__main__":
